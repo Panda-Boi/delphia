@@ -13,7 +13,7 @@ mov bp, 0x8000
 mov sp, bp
 
 mov bx, KERNEL_LOCATION
-mov dh, 2 ; if something is broken, this number is probably too low
+mov dh, 40 ; if something is broken, this number is probably too low
           ; no of sectors being read
 
 mov ah, 0x02
