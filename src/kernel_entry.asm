@@ -1,5 +1,12 @@
+[bits 32]
+
 section .text
-    [bits 32]
+
+global _start
+_start:
     [extern main]
+
+    mov eax, 69
+    push eax
     call main
     jmp $

@@ -1,12 +1,19 @@
 [org 0x7c00]
 KERNEL_LOCATION equ 0x1000
 
-
+; bios loads the boot disk no into dl before jumping to 0x7C00
 mov [BOOT_DISK], dl
 
-
+; floppies => 512 bytes sectors, 18 sectors/track, 160 tracks
 ; reading from boot disk
-xor ax, ax                          
+; AH = 0x02
+; AL = no of sectors to read
+; CH = track / cylinder no
+; CL = sector no
+; DH = head no
+; DL = drive no
+; ES:BX = pointer to biff
+xor ax, ax
 mov es, ax
 mov ds, ax
 mov bp, 0x8000
