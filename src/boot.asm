@@ -1,5 +1,36 @@
 [org 0x7c00]
+[bits 16]
 KERNEL_LOCATION equ 0x1000
+
+; FAT12 Header
+jmp short start
+nop
+
+bdb_oem:                    db "MSWIN4.1"   ; 8 bytes
+bdb_bytes_per_sector:       dw 512          
+bdb_sectors_per_cluster:    db 1
+bdb_reserved_sectors:       dw 1
+bdb_fat_count:              db 2
+bdb_dir_entries_count:      dw 0x0e0
+bdb_total_sectors:          dw 2880         ; 2880 * 512 bytes = 1440 Kib
+bdb_media_descriptor_type:  db 0x0f0        ; f0 -> 3.5" floppy disk
+bdb_sectors_per_fat:        dw 9
+bdb_sectors_per_track:      dw 18
+bdb_heads:                  dw 2
+bdb_hidden_sectors:         dd 0
+bdb_large_sector_count:     dd 0
+
+; Extended Boot Record
+ebr_drive_number:           db 0            ; 0x0 -> floppy1, 0x1 -> floppy2, 0x80 -> hard disk
+                            db 0            ; reserved
+ebr_signature:              db 0x29
+ebr_volume_id:              db 0x10, 0x20, 0x30, 0x40   ; serial number
+ebr_volume_label:           db "DELPHIA    "    ; 11 bytes padded with spaces
+ebr_system_id:              db "FAT12   "       ; 8 bytes
+
+; End of Header
+
+start:
 
 ; bios loads the boot disk no into dl before jumping to 0x7C00
 mov [BOOT_DISK], dl
