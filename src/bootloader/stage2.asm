@@ -1,22 +1,11 @@
 [org 0x7e00]
 [bits 16]
 
-pop ax              ; memory location of the print function
-mov [print], ax     ; save location of print function to label print
-
-mov si, msg_stage2
-call [print]
-
 jmp enter_protected_mode
 
 halt:
     cli
     hlt
-
-%define ENDL 0x0D, 0x0A
-msg_stage2:              db "Hello from Stage 2!", ENDL, 0
-
-print: db 0x0
 
 enter_protected_mode:
 
@@ -94,9 +83,7 @@ start_protected_mode:
     mov ah, 0x0f
     mov [0xb8000], ax   ; write Q at video memory
 
-    jmp $
-
-    ;jmp KERNEL_LOCATION ; jump to kernel location
+    jmp KERNEL_LOCATION ; jump to kernel location
 
 KERNEL_LOCATION equ 0x8000
 times 512 - ($ - $$) db 0

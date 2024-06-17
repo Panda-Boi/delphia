@@ -43,22 +43,170 @@ start:
     ; bios loads the boot disk no into dl before jumping to 0x7C00
     mov [ebr_drive_number], dl
 
+    ; load stage2 of the bootloader into memory
     mov ax, 1       ; LBA = 1 (second sector of the disk)
     mov cl, 1       ; no of sectors to be read = 1
     mov bx, STAGE_2_LOCATION  ; read data into memory right after the bootloader
     call disk_read
 
-    mov si, msg_loading
-    call print
+    ; some BIOSes might start us at 07C0:0000 instead of 0000:7C00, make sure we are in the
+    ; expected location
+    push es
+    push word .after
+    retf
 
-    push print      ; push memory location of the print function to the stack
-    jmp STAGE_2_LOCATION
+.after:
+
+    ; read something from floppy disk
+    ; BIOS should set DL to drive number
+    mov [ebr_drive_number], dl
+
+    ; read drive parameters (sectors per track and head count),
+    ; instead of relying on data on formatted disk
+    push es
+    mov ah, 08h
+    int 13h
+    jc floppy_error
+    pop es
+
+    and cl, 0x3F                        ; remove top 2 bits
+    xor ch, ch
+    mov [bdb_sectors_per_track], cx     ; sector count
+
+    inc dh
+    mov [bdb_heads], dh                 ; head count
+
+    ; compute LBA of root directory = reserved + fats * sectors_per_fat
+    ; note: this section can be hardcoded
+    mov ax, [bdb_sectors_per_fat]
+    mov bl, [bdb_fat_count]
+    xor bh, bh
+    mul bx                              ; ax = (fats * sectors_per_fat)
+    add ax, [bdb_reserved_sectors]      ; ax = LBA of root directory
+    push ax
+
+    ; compute size of root directory = (32 * number_of_entries) / bytes_per_sector
+    mov ax, [bdb_dir_entries_count]
+    shl ax, 5                           ; ax *= 32
+    xor dx, dx                          ; dx = 0
+    div word [bdb_bytes_per_sector]     ; number of sectors we need to read
+
+    test dx, dx                         ; if dx != 0, add 1
+    jz .root_dir_after
+    inc ax                              ; division remainder != 0, add 1
+                                        ; this means we have a sector only partially filled with entries
+.root_dir_after:
+
+    ; read root directory
+    mov cl, al                          ; cl = number of sectors to read = size of root directory
+    pop ax                              ; ax = LBA of root directory
+    mov dl, [ebr_drive_number]          ; dl = drive number (we saved it previously)
+    mov bx, ROOT_DIR_BUFFER             ; es:bx = ROOT_DIR_BUFFER
+    call disk_read
+
+    ; search for kernel.bin
+    xor bx, bx
+    mov di, ROOT_DIR_BUFFER             ; di points to first file name
+
+.search_kernel:
+    mov si, file_kernel_bin             ; name of kernel file
+    mov cx, 11                          ; compare up to 11 characters
+    push di                             
+    repe cmpsb
+    pop di
+    je .found_kernel
+
+    ; move to next root dir entry
+    add di, 32                          ; size of directory entry = 32
+    inc bx
+    cmp bx, [bdb_dir_entries_count]     ; check if no more dir entries are left
+    jl .search_kernel
+
+    ; kernel not found
+    jmp kernel_not_found_error
+
+.found_kernel:
+
+    ; di should have the address to the entry
+    mov ax, [di + 26]                   ; first logical cluster field (offset 26 in dir entry)
+    mov [kernel_cluster], ax
+
+    ; load FAT from disk into memory
+    mov ax, [bdb_reserved_sectors]
+    mov bx, FAT_BUFFER
+    mov cl, [bdb_sectors_per_fat]
+    mov dl, [ebr_drive_number]
+    call disk_read
+
+    ; read kernel and process FAT chain
+    mov bx, KERNEL_LOAD_SEGMENT
+    ;mov es, bx
+    ;mov bx, KERNEL_LOAD_OFFSET
+
+.load_kernel_loop:
+    
+    ; Read next cluster
+    mov ax, [kernel_cluster]
+    
+    ; not nice :( hardcoded value
+    add ax, 32                          ; first cluster = start_sector + (kernel_cluster - 2) * sectors_per_cluster
+                                        ; start sector = reserved + fats + root directory size = 2 + 18 + 14 = 34
+    mov cl, 1
+    mov dl, [ebr_drive_number]
+    call disk_read
+
+    add bx, [bdb_bytes_per_sector]
+
+    ; compute location of next cluster
+    mov ax, [kernel_cluster]
+    mov cx, 3
+    mul cx
+    mov cx, 2
+    div cx                              ; ax = index of entry in FAT, dx = cluster mod 2
+
+    mov si, FAT_BUFFER
+    add si, ax
+    mov ax, [ds:si]                     ; read entry from FAT table at index ax
+
+    or dx, dx
+    jz .even
+
+.odd:
+    shr ax, 4
+    jmp .next_cluster_after
+
+.even:
+    and ax, 0x0FFF
+
+.next_cluster_after:
+    cmp ax, 0x0FF8                      ; end of chain
+    jae .read_finish
+
+    mov [kernel_cluster], ax
+    jmp .load_kernel_loop
+
+.read_finish:
+    
+    mov dl, [ebr_drive_number]          ; boot device in dl
+
+    jmp STAGE_2_LOCATION                ; jump to stage 2 of the bootloader
+
+    jmp wait_key_and_reboot             ; should never happen
+
+    cli                                 ; disable interrupts, this way CPU can't get out of "halt" state
+    hlt
 
 %define ENDL 0x0D, 0x0A
-msg_loading:              db "Loading Stage 2...", ENDL, 0
-msg_floppy_error:       db "Read from disk failed!", ENDL, 0
+msg_floppy_error:       db "Read from disk failed", ENDL, 0
+msg_kernel_not_found:   db "KERNEL.BIN not found", ENDL, 0
+file_kernel_bin:        db "KERNEL  BIN"
+kernel_cluster:         dw 0
 
-STAGE_2_LOCATION equ 0x7e00
+ROOT_DIR_BUFFER equ 0x500           ; both are read into same area of memmory
+FAT_BUFFER equ 0x500
+STAGE_2_LOCATION equ 0x7e00         ; Memory right after the bootloader
+KERNEL_LOAD_SEGMENT     equ 0x8000
+KERNEL_LOAD_OFFSET      equ 0
 
 ; Prints a string to the screen
 ; Params:
@@ -89,6 +237,11 @@ print:
 ; Error Handlers
 floppy_error:
     mov si, msg_floppy_error
+    call print
+    jmp wait_key_and_reboot
+
+kernel_not_found_error:
+    mov si, msg_kernel_not_found
     call print
     jmp wait_key_and_reboot
 

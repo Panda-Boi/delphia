@@ -4,13 +4,9 @@
 
 #include "terminal.h"
 
-extern void main(uint32_t number){
+extern void main(){
 
     terminal_initialize();
-
-    if (number == 69) {
-        print("The number is indeed 69\n");
-    }
 
     print("Hello World!");
 

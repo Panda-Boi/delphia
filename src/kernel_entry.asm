@@ -5,8 +5,11 @@ section .text
 global _start
 _start:
     [extern main]
+    
+    mov al, 'Q'
+    mov ah, 0x0f
+    mov [0xb8000], ax   ; write Q at video memory
 
-    mov eax, 69
-    push eax
     call main
+
     jmp $
