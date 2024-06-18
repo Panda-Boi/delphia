@@ -1,7 +1,8 @@
 [org 0x7e00]
 [bits 16]
 
-jmp enter_protected_mode
+entry:
+    jmp enter_protected_mode
 
 halt:
     cli
@@ -79,9 +80,9 @@ start_protected_mode:
     mov ebp, 0x90000    ; 32 bit stack base pointer
     mov esp, ebp
 
-    mov al, 'P'
+    mov al, 'G'
     mov ah, 0x0f
-    mov [0xb8000], ax   ; write Q at video memory
+    mov [0xb8000], ax
 
     jmp KERNEL_LOCATION ; jump to kernel location
 

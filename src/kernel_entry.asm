@@ -5,10 +5,10 @@ section .text
 global _start
 _start:
     [extern main]
-    
-    mov al, 'Q'
+
+    mov al, 'X'
     mov ah, 0x0f
-    mov [0xb8000], ax   ; write Q at video memory
+    mov [0xb8004], ax   ; write Q at video memory
 
     call main
 

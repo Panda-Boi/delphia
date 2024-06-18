@@ -8,7 +8,7 @@ extern void main(){
 
     terminal_initialize();
 
-    print("Hello World!");
+    print("Hello World!\n");
 
     return;
 

@@ -15,10 +15,11 @@ stage2: src/bootloader/stage2.asm
 bootloader: $(build)/bootloader/stage1.bin $(build)/bootloader/stage2.bin
 	cat $? > $(build)/bootloader/bootloader.bin
 
-kernel: src/kernel_entry.asm src/kernel.c
+kernel: src/kernel_entry.asm
+# $(asm) $? -f bin -o build/kernel_entry.bin
 	$(asm) src/kernel_entry.asm -f elf -o build/kernel_entry.o
-	$(CC) -ffreestanding -m32 -g -o build/kernel.o -c src/kernel.c
-	$(linker) -o build/kernel.bin -Ttext 0x1000 build/kernel_entry.o build/kernel.o --oformat binary
+	$(CC) -ffreestanding -nostdlib -o build/kernel.o -c src/kernel.c
+	$(linker) -o build/kernel.bin build/kernel_entry.o build/kernel.o -T linker.ld
 
 binary: build/kernel.bin build/bootloader/bootloader.bin
 	cat build/bootloader/bootloader.bin build/kernel.bin > build/OS.bin
