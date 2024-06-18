@@ -3,4 +3,3 @@ build/
 testing/
 bochsrc.bxrc
 bx_enh_dbg.ini
-.gitignore
