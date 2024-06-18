@@ -1,36 +1,53 @@
-asm=nasm
+ASM=nasm
+ASMFLAGS=-f elf
 CC=i686-elf-gcc
-linker=i686-elf-ld
-src=src
-build=build
+CCFLAGS=-ffreestanding -nostdlib
+LD=i686-elf-ld
+LFLAGS=-T linker.ld
+SRC=src
+BUILD=build
 
-all: stage1 stage2 bootloader kernel binary floppy
+all: floppy
 
-stage1: src/bootloader/stage1.asm
-	$(asm) -f bin $? -o build/bootloader/stage1.bin
+# compiling all the c source files into object files
+$(BUILD)/%.o: $(SRC)/%.c
+	@$(CC) $(CCFLAGS) -o $@ -c $<
+	@echo "Compiled" $<
 
-stage2: src/bootloader/stage2.asm
-	$(asm) -f bin $? -o build/bootloader/stage2.bin
+# assembling all the asm source files into object files
+$(BUILD)/%.o: $(SRC)/%.asm
+	@$(ASM) $(ASMFLAGS) -o $@ $<
+	@echo "Assembled" $<
 
-bootloader: $(build)/bootloader/stage1.bin $(build)/bootloader/stage2.bin
-	cat $? > $(build)/bootloader/bootloader.bin
+# BUILDing the stage1 binary
+$(BUILD)/bootloader/stage1.bin: $(SRC)/bootloader/stage1.asm
+	@$(ASM) -f bin $^ -o $@
+	@echo "Built stage1.bin"
 
-kernel: src/kernel_entry.asm
-# $(asm) $? -f bin -o build/kernel_entry.bin
-	$(asm) src/kernel_entry.asm -f elf -o build/kernel_entry.o
-	$(CC) -ffreestanding -nostdlib -o build/kernel.o -c src/kernel.c
-	$(linker) -o build/kernel.bin build/kernel_entry.o build/kernel.o -T linker.ld
+# BUILDing the stage2 binary
+$(BUILD)/bootloader/stage2.bin: $(SRC)/bootloader/stage2.asm
+	@$(ASM) -f bin $^ -o $@
+	@echo "Built stage2.bin"
 
-binary: build/kernel.bin build/bootloader/bootloader.bin
-	cat build/bootloader/bootloader.bin build/kernel.bin > build/OS.bin
-	truncate -s 1440k build/OS.bin
+# BUILDing the complete bootloader binary
+$(BUILD)/bootloader/bootloader.bin: $(BUILD)/bootloader/stage1.bin $(BUILD)/bootloader/stage2.bin
+	@cat $^ > $@
+	@echo "Built bootloader.bin\n============================"
 
-# creating a 1440 KiB floppy img
-floppy: $(build)/kernel.bin $(build)/bootloader/bootloader.bin
-	dd if=/dev/zero of=$(build)/floppy.img bs=512 count=2880
-	mkfs.fat -F 12 -n "DOS" -R 2 $(build)/floppy.img
-	dd if=$(build)/bootloader/bootloader.bin of=$(build)/floppy.img conv=notrunc
-	mcopy -i $(build)/floppy.img $(build)/kernel.bin "::kernel.bin"
+# BUILDing the complete kernel binary
+$(BUILD)/kernel.bin: $(BUILD)/kernel_entry.o $(BUILD)/kernel.o $(BUILD)/terminal.o
+	@$(LD) -o $@ $^ $(LFLAGS)
+	@echo "Built kernel.bin\n============================"
+
+# creating a 1440 KiB floppy img with the bootloader and the kernel binaries
+floppy: $(BUILD)/bootloader/bootloader.bin $(BUILD)/kernel.bin
+	@dd if=/dev/zero of=$(BUILD)/floppy.img bs=512 count=2880 status=progress 2>/dev/null
+	@mkfs.fat -F 12 -n "DOS" -R 2 $(BUILD)/floppy.img >/dev/null
+	@dd if=$(BUILD)/bootloader/bootloader.bin of=$(BUILD)/floppy.img conv=notrunc status=progress 2>/dev/null
+	@mcopy -i $(BUILD)/floppy.img $(BUILD)/kernel.bin "::kernel.bin"
+	@echo "Created floppy.img"
 
 clean:
-	rm build/*
+	@rm -r $(BUILD)/*
+	@mkdir $(BUILD)/bootloader
+	@echo "Cleared $(BUILD)/"
