@@ -15,6 +15,37 @@ void print(char* str) {
 
 }
 
+size_t numOfDigits(size_t integer) {
+
+    if (integer < 10) {
+        return 1;
+    }
+
+    return numOfDigits(integer / 10) + 1;
+
+}
+
+void print_int(size_t integer) {
+
+    size_t len = numOfDigits(integer);
+    uint8_t digits[len];
+
+    for (int i=0;i<len;i++) {
+        size_t temp = integer;
+        for (int j=len-i-1;j>0;j--) {
+            temp /= 10;
+        }
+        digits[i] = temp % 10;
+    }
+
+    for (int i=0;i<len;i++) {
+        putc(digits[i] + 48);
+    }
+
+    update_cursor(terminal_column, terminal_row);
+
+}
+
 // initializes the terminal and clears the screen
 void terminal_initialize() {
 

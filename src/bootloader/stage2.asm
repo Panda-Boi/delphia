@@ -80,10 +80,6 @@ start_protected_mode:
     mov ebp, 0x90000    ; 32 bit stack base pointer
     mov esp, ebp
 
-    mov al, 'G'
-    mov ah, 0x0f
-    mov [0xb8000], ax
-
     jmp KERNEL_LOCATION ; jump to kernel location
 
 KERNEL_LOCATION equ 0x8000

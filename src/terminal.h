@@ -28,6 +28,7 @@ void terminal_clear();
 void terminal_scroll();
 
 void print(char* str);
+void print_int(size_t integer);
 void putc(char c);
 void puts(char* str, size_t len);
 

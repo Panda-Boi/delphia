@@ -35,7 +35,7 @@ $(BUILD)/bootloader/bootloader.bin: $(BUILD)/bootloader/stage1.bin $(BUILD)/boot
 	@echo "Built bootloader.bin\n============================"
 
 # BUILDing the complete kernel binary
-$(BUILD)/kernel.bin: $(BUILD)/kernel_entry.o $(BUILD)/kernel.o $(BUILD)/terminal.o
+$(BUILD)/kernel.bin: $(BUILD)/kernel_entry.o $(BUILD)/kernel.o $(BUILD)/terminal.o $(BUILD)/fat.o
 	@$(LD) -o $@ $^ $(LFLAGS)
 	@echo "Built kernel.bin\n============================"
 
