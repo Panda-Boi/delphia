@@ -62,6 +62,24 @@ GDT_start:
         db 0b10010010
         db 0b11001111
         db 0x0
+
+    GDT_16bit:
+        ; 16-bit code segment
+        dw 0FFFFh                   ; limit (bits 0-15) = 0xFFFFF
+        dw 0                        ; base (bits 0-15) = 0x0
+        db 0                        ; base (bits 16-23)
+        db 10011010b                ; access (present, ring 0, code segment, executable, direction 0, readable)
+        db 00001111b                ; granularity (1b pages, 16-bit pmode) + limit (bits 16-19)
+        db 0                        ; base high
+
+        ; 16-bit data segment
+        dw 0FFFFh                   ; limit (bits 0-15) = 0xFFFFF
+        dw 0                        ; base (bits 0-15) = 0x0
+        db 0                        ; base (bits 16-23)
+        db 10010010b                ; access (present, ring 0, data segment, executable, direction 0, writable)
+        db 00001111b                ; granularity (1b pages, 16-bit pmode) + limit (bits 16-19)
+        db 0                        ; base high
+
 GDT_end:
 
 GDT_descriptor:
@@ -77,7 +95,7 @@ start_protected_mode:
     mov fs, ax
     mov gs, ax
 
-    mov ebp, 0x90000    ; 32 bit stack base pointer
+    mov ebp, 0xffff    ; 32 bit stack base pointer
     mov esp, ebp
 
     jmp KERNEL_LOCATION ; jump to kernel location

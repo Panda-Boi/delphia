@@ -1,9 +1,15 @@
 #include "fat.h"
 #include "terminal.h"
+#include "disk.h"
 
 const size_t DRIVE_NO = 0;
 
 bool initialize_fat(int8_t* address) {
+
+    //load fat somewhere
+    // where tho
+    // hmmmmmm
+    // i might load it in 0x500
 
     int8_t* fat_address = address;
 

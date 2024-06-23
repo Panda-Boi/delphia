@@ -35,7 +35,7 @@ $(BUILD)/bootloader/bootloader.bin: $(BUILD)/bootloader/stage1.bin $(BUILD)/boot
 	@echo "Built bootloader.bin\n============================"
 
 # BUILDing the complete kernel binary
-$(BUILD)/kernel.bin: $(BUILD)/kernel_entry.o $(BUILD)/kernel.o $(BUILD)/terminal.o $(BUILD)/fat.o
+$(BUILD)/kernel.bin: $(BUILD)/kernel_entry.o $(BUILD)/kernel.o $(BUILD)/terminal.o $(BUILD)/x86.o $(BUILD)/disk.o
 	@$(LD) -o $@ $^ $(LFLAGS)
 	@echo "Built kernel.bin\n============================"
 
@@ -45,6 +45,7 @@ floppy: $(BUILD)/bootloader/bootloader.bin $(BUILD)/kernel.bin
 	@mkfs.fat -F 12 -n "DOS" -R 2 $(BUILD)/floppy.img >/dev/null
 	@dd if=$(BUILD)/bootloader/bootloader.bin of=$(BUILD)/floppy.img conv=notrunc status=progress 2>/dev/null
 	@mcopy -i $(BUILD)/floppy.img $(BUILD)/kernel.bin "::kernel.bin"
+	@mcopy -i $(BUILD)/floppy.img files/test.txt "::test.txt"
 	@echo "Created floppy.img"
 
 clean:
