@@ -32,72 +32,112 @@ typedef struct {
 
 } __attribute__((packed)) FAT12_HEADER;
 
+uint32_t cluster_to_lba(uint16_t cluster, DISK* disk);
+uint16_t next_cluster(uint16_t current_cluster);
 
-typedef struct {
+DISK* current_disk;
+FAT12_HEADER* header;
+ROOT_DIR_ENTRY* root_dir_entries;
+uint8_t* file_allocation_table;
 
-    uint8_t name[11];
-    uint8_t attributes;
-    uint8_t reserved;
-    uint8_t created_time_tenths;
-    uint16_t created_time;
-    uint16_t created_date;
-    uint16_t accessed_date;
-    uint16_t first_cluster_high;
-    uint16_t modified_time;
-    uint16_t modified_date;
-    uint16_t first_cluster_low;
-    uint32_t size;
+bool initialize_fat(void* address, DISK* disk) {
 
-} __attribute__((packed)) ROOT_DIR_ENTRY;
+    // set initialized disk
+    current_disk = disk;
 
-FAT12_HEADER* header = (FAT12_HEADER*) MEM_BUFFER;
-
-bool initialize_fat(DISK* disk) {
+    // reading the fat header into memory
+    header = address;
+    address += sizeof(FAT12_HEADER);
 
     DISK_ReadSectors(disk, 0, 1, header);
 
-    // print the name of the drive
-    char label[12];
-    for (int i=0;i<11;i++) {
+    // reading the root directory into memory
+    size_t root_dir_sector = header->reserved_sectors + (header->fat_count * header->sectors_per_fat);
+    size_t root_dir_sectors_count = (header->dir_entries_count * 32) / header->bytes_per_sector; // size of entry = 32 bytes, 512 bytes per sector
 
-        label[i] = header->volume_label[i];
-        if (label[i] == ' ') {
-            label[i] = '\0';
-            break;
-        }
+    root_dir_entries = address;
+    address += sizeof(ROOT_DIR_ENTRY) * header->dir_entries_count;
 
-    }
-    print(label);
-    print(":\\>FILES ON DISK:\n");
+    DISK_ReadSectors(disk, root_dir_sector, root_dir_sectors_count, root_dir_entries);
+
+    // reading the FAT into memory
+    file_allocation_table = address;
+    address += header->sectors_per_fat * header->bytes_per_sector;
 
     size_t fat_sector = header->reserved_sectors;
-    size_t root_dir_sector = header->reserved_sectors + (header->fat_count * header->sectors_per_fat);
 
-    size_t root_dir_sectors_count = (header->dir_entries_count * 32) / 512; // size of entry = 32 bytes, 512 bytes per sector
-
-    ROOT_DIR_ENTRY dir_entries[header->dir_entries_count];
-    DISK_ReadSectors(disk, root_dir_sector, root_dir_sectors_count, dir_entries);
-    
-    for (int n=1;n<3;n++) {
-        char file_name[12];
-        for (int i=0;i<11;i++) {
-            file_name[i] = dir_entries[n].name[i];
-        }
-        file_name[11] = '\0'; 
-        print(file_name);
-        print("\n");
-    }
+    DISK_ReadSectors(disk, fat_sector, header->sectors_per_fat, file_allocation_table);
 
     return true;
 }
 
-bool file_load(char* file_name, void* address) {
+bool file_read(char* file_name, void* address) {
 
+    ROOT_DIR_ENTRY* file = file_find(file_name);
+
+    size_t clusters_count = (file->size + header->bytes_per_sector - 1) / header->bytes_per_sector;
+    clusters_count /= header->sectors_per_cluster;
+    
+    uint16_t current_cluster = file->first_cluster_low;
+
+    for (int i=0;i<clusters_count;i++) {
+
+        uint32_t cluster_lba = cluster_to_lba(current_cluster, current_disk);
+
+        DISK_ReadSectors(current_disk, cluster_lba, header->sectors_per_cluster, address);
+
+        current_cluster = next_cluster(current_cluster);
+        address += header->bytes_per_sector * header->sectors_per_cluster;
+
+    }
 
 
 }
 
-size_t file_find(char* file_name, size_t drive_no) {
+ROOT_DIR_ENTRY* file_find(char* file_name) {
 
-    return 1;
+    file_name = to_upper(file_name);
+
+    for (int i=0;i<header->dir_entries_count;i++) {
+
+        // create null terminated string from root dir entry
+        char name[12];
+        strcpy(root_dir_entries[i].name, name, 11);
+        name[11] = '\0';
+
+        if (strcmp(name, file_name)) {
+            return &root_dir_entries[i];
+        }
+    }
+
+    // file not found
+    return NULL;
+
+}
+
+uint16_t next_cluster(uint16_t current_cluster) {
+
+    size_t byte_offset = current_cluster / 2 + current_cluster;
+    uint16_t cluster_entry = *(file_allocation_table + byte_offset);
+
+    if (current_cluster % 2 == 0) {
+        // even cluster
+        // return only bottom 12 bits out of 16
+        return (cluster_entry & 0x0FFF);
+    } else {
+        // odd cluster
+        // return only top 12 bits out of 16
+        return (cluster_entry >> 4);
+    }
+
+}
+
+uint32_t cluster_to_lba(uint16_t cluster, DISK* disk) {
+
+    uint32_t data_sector = header->reserved_sectors // reserved sectors
+                        + (header->fat_count * header->sectors_per_fat) // fat sectors
+                        + (header->dir_entries_count * 32) / header->bytes_per_sector; // root dir sectors
+    
+    return data_sector + cluster - 2;
+
 }

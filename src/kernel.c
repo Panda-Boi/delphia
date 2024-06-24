@@ -6,6 +6,7 @@
 #include "fat.h"
 #include "disk.h"
 #include "memory.h"
+#include "string.h"
 
 #define BOOT_DRIVE 0
 
@@ -20,7 +21,7 @@ extern void main(){
 
     void* fatAddress = buffer;
     buffer += 512;
-    initialize_fat(&disk);
+    initialize_fat(fatAddress, &disk);
 
     return;
 

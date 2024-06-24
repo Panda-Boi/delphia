@@ -15,19 +15,19 @@ void print(char* str) {
 
 }
 
-size_t numOfDigits(size_t integer) {
+size_t numOfDigits(size_t integer, uint8_t base) {
 
-    if (integer < 10) {
+    if (integer < base) {
         return 1;
     }
 
-    return numOfDigits(integer / 10) + 1;
+    return numOfDigits(integer / base, base) + 1;
 
 }
 
 void print_int(size_t integer) {
 
-    size_t len = numOfDigits(integer);
+    size_t len = numOfDigits(integer, 10);
     uint8_t digits[len];
 
     for (int i=0;i<len;i++) {
@@ -40,6 +40,31 @@ void print_int(size_t integer) {
 
     for (int i=0;i<len;i++) {
         putc(digits[i] + 48);
+    }
+
+    update_cursor(terminal_column, terminal_row);
+
+}
+
+void print_hex(size_t integer) {
+
+    size_t len = numOfDigits(integer, 16);
+    uint8_t digits[len];
+
+    for (int i=0;i<len;i++) {
+        size_t temp = integer;
+        for (int j=len-i-1;j>0;j--) {
+            temp /= 16;
+        }
+        digits[i] = temp % 16;
+    }
+
+    for (int i=0;i<len;i++) {
+        if (digits[i] <= 9) {
+            putc(digits[i] + 48);
+        } else {
+            putc(digits[i] + 55);
+        }
     }
 
     update_cursor(terminal_column, terminal_row);
@@ -187,18 +212,6 @@ void update_cursor(int x, int y) {
 	outb(0x3D5, (uint8_t) (pos & 0xFF));
 	outb(0x3D4, 0x0E);
 	outb(0x3D5, (uint8_t) ((pos >> 8) & 0xFF));
-}
-
-// returns length of a string
-size_t strlen(const char* str) {
-
-    size_t len = 0;
-
-    while (str[len]) {
-        len++;
-    }
-
-    return len;
 }
 
 // returns vga color byte from foreground and background colors

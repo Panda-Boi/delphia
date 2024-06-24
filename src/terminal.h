@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include "string.h"
+
 // VGA Hardware text mode color constants
 enum vga_color {
 	VGA_COLOR_BLACK = 0,
@@ -29,6 +31,7 @@ void terminal_scroll();
 
 void print(char* str);
 void print_int(size_t integer);
+void print_hex(size_t integer);
 void putc(char c);
 void puts(char* str, size_t len);
 
@@ -40,8 +43,6 @@ void disable_cursor(); // asm func
 void update_cursor(int x, int y);
 
 void screen_clear();
-
-size_t strlen(const char* str);
 
 static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg);
 static inline uint16_t vga_entry(unsigned char uc, uint8_t color);
