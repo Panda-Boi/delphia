@@ -3,16 +3,28 @@
 #include <stdint.h>
 
 #include "terminal.h"
+#include "fat.h"
+#include "disk.h"
+#include "memory.h"
+#include "string.h"
 
-extern void main(uint32_t number){
+#define BOOT_DRIVE 0
+
+void* buffer = (void*) MEM_BUFFER;
+
+extern void main(){
 
     terminal_initialize();
 
-    if (number == 69) {
-        print("The number is indeed 69\n");
-    }
+    DISK disk;
+    DISK_Initialize(&disk, BOOT_DRIVE);
 
-    print("Hello World!");
+    void* fatAddress = buffer;
+    buffer += 512;
+    size_t s = initialize_fat(fatAddress, &disk);
+
+    file_read("test    txt", buffer);
+    
 
     return;
 
