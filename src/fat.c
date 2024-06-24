@@ -40,7 +40,7 @@ FAT12_HEADER* header;
 ROOT_DIR_ENTRY* root_dir_entries;
 uint8_t* file_allocation_table;
 
-bool initialize_fat(void* address, DISK* disk) {
+size_t initialize_fat(void* address, DISK* disk) {
 
     // set initialized disk
     current_disk = disk;
@@ -68,7 +68,9 @@ bool initialize_fat(void* address, DISK* disk) {
 
     DISK_ReadSectors(disk, fat_sector, header->sectors_per_fat, file_allocation_table);
 
-    return true;
+    size_t fat_metadata_size = ((void*)file_allocation_table - (void*)header) + (header->sectors_per_fat * header->bytes_per_sector);
+
+    return fat_metadata_size;
 }
 
 bool file_read(char* file_name, void* address) {

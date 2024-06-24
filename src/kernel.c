@@ -21,7 +21,10 @@ extern void main(){
 
     void* fatAddress = buffer;
     buffer += 512;
-    initialize_fat(fatAddress, &disk);
+    size_t s = initialize_fat(fatAddress, &disk);
+
+    file_read("test    txt", buffer);
+    
 
     return;
 

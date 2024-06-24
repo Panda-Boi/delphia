@@ -21,8 +21,9 @@ typedef struct {
 
 } __attribute__((packed)) ROOT_DIR_ENTRY;
 
-/* Loads all the meta-data of a fat formatted disk and sets the disk to the currently open disk */
-bool initialize_fat(void* address, DISK* disk);
+/* Loads all the meta-data of a fat formatted disk at the given address and sets the disk to the currently open disk 
+Returns the number of bytes loaded at the address given */
+size_t initialize_fat(void* address, DISK* disk);
 
 /* Finds the file with the given name in the root directory and returns its properties */
 ROOT_DIR_ENTRY* file_find(char* file_name);
