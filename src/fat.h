@@ -32,4 +32,6 @@ ROOT_DIR_ENTRY* file_find(char* file_name);
 Ensure there is enough space at the address to fit the entire file
 Returns true if succesful or false if failed */
 bool file_read(char* file_name, void* address);
+
+// TODO
 bool file_write(char* file_name, void* address);
