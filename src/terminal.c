@@ -98,6 +98,19 @@ void terminal_newline() {
 
 }
 
+void terminal_backspace() {
+
+    // do nothing if at the start of the line
+    if (terminal_column == 0 ) {
+        return;
+    }
+
+    terminal_column--;
+    const uint16_t entry = vga_entry(' ', terminal_color);
+    put_vga_entry_at(entry, terminal_column, terminal_row);
+
+}
+
 // scrolls the terminal by shifting all rows up by 1
 void terminal_scroll() {
 
@@ -163,6 +176,9 @@ void putc(char c) {
     switch (c) {
         case '\n':
             terminal_newline();
+            return;
+        case '\b':
+            terminal_backspace();
             return;
     }
 

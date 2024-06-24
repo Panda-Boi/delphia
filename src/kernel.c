@@ -7,6 +7,7 @@
 #include "disk.h"
 #include "memory.h"
 #include "string.h"
+#include "keyboard.h"
 
 #define BOOT_DRIVE 0
 
@@ -20,11 +21,18 @@ extern void main(){
     DISK_Initialize(&disk, BOOT_DRIVE);
 
     void* fatAddress = buffer;
-    buffer += 512;
-    size_t s = initialize_fat(fatAddress, &disk);
+    buffer += initialize_fat(fatAddress, &disk);
 
     file_read("test    txt", buffer);
-    
+
+    while (true) {
+        char c = keyboard_getinput();
+        if (c) {
+            char str[] = {0, 0};
+            str[0] = c;
+            print(str);
+        }
+    }
 
     return;
 
