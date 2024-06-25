@@ -40,6 +40,41 @@ void strcpy(const char* str1, char* str2, size_t len) {
     
 }
 
+size_t strtok(char* str, char delimiter) {
+
+    size_t count = 0;
+
+    size_t len = strlen(str);
+    size_t i = 0;
+    char* current_token = str;
+
+    while (*str) {
+        if (*str == delimiter) {
+
+            // crushing multiple delimeters into 1 char
+            if (i == 0 || *(str-1) == '\0') {
+                strcpy(str+1, current_token, len - i);
+                continue;
+            }
+
+            *str = '\0';
+            str++;
+            i++;
+            current_token = str;
+
+            count++;
+            continue;
+
+        }
+
+        str++;
+        i++;
+    }
+
+    return count;
+
+}
+
 char* to_upper(char* str) {
 
     char* upper_str = str;
