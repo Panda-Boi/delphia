@@ -7,6 +7,7 @@
 #include "disk.h"
 #include "memory.h"
 #include "string.h"
+#include "shell.h"
 #include "keyboard.h"
 
 #define BOOT_DRIVE 0
@@ -17,22 +18,22 @@ extern void main(){
 
     terminal_initialize();
 
+    print("Initializing Disk...");
     DISK disk;
-    DISK_Initialize(&disk, BOOT_DRIVE);
-
-    void* fatAddress = buffer;
-    buffer += initialize_fat(fatAddress, &disk);
-
-    file_read("test    txt", buffer);
-
-    while (true) {
-        char c = keyboard_getinput();
-        if (c) {
-            char str[] = {0, 0};
-            str[0] = c;
-            print(str);
-        }
+    if (!DISK_Initialize(&disk, BOOT_DRIVE)) {
+        print("Couldn't initialize disk ");
+        print_int(BOOT_DRIVE);
+        print("...");
+    } else {
+        print(" Done\n");
     }
+
+    print("Press any key to enter the shell...");
+    keyboard_getinput();
+
+    initialize_shell(buffer, disk);
+
+    print("\nFinally decided to leave eh?");
 
     return;
 

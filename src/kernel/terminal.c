@@ -15,6 +15,14 @@ void print(char* str) {
 
 }
 
+// prints a character
+void printc(char c) {
+
+    putc(c);
+    update_cursor(terminal_column, terminal_row);
+
+}
+
 size_t numOfDigits(size_t integer, uint8_t base) {
 
     if (integer < base) {

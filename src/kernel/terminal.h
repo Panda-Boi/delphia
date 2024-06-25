@@ -32,6 +32,7 @@ void terminal_newline();
 void terminal_clear();
 void terminal_scroll();
 
+void printc(char c);
 void print(char* str);
 void print_int(size_t integer);
 void print_hex(size_t integer);
