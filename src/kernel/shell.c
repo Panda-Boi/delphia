@@ -51,15 +51,16 @@ void initialize_shell(void* buffer, DISK disk) {
         char c = keyboard_getinput();
         if (c) {
 
-            // echo char
-            printc(c);
-
             if (c == '\b') {
                 if (command_head != current_command) {
                     command_head--;
+                    printc(c);
                 }
                 continue;
             }
+
+            // echo char
+            printc(c);
 
             // add to current command
             *command_head = c;
@@ -90,16 +91,11 @@ command parse_command() {
     command_head--;
     *command_head = '\0';
 
-    char* cmd = command_head + 1;
-    strcpy(current_command, cmd, strlen(current_command) + 1);
-
-    print("Current Command: ");
-    print(current_command);
-    print("\n");
-
     command com;
     com.argc = strtok(current_command, ' ');
     com.argv = current_command;
+
+    current_command = to_upper(current_command);
 
     if (strcmp(current_command, "EXIT")) {
         com.type = EXIT;
@@ -141,14 +137,14 @@ void exit() {
 
 void echo(command com) {
 
-    print("Echoing: ");
-
     char* args = com.argv;
     args += strlen(args) + 1;
 
     for (int i=0;i<com.argc;i++) {
 
         print(args);
+
+        printc(' ');
 
         args += strlen(args) + 1;
 
@@ -159,5 +155,8 @@ void echo(command com) {
 }
 
 void help() {
+
+    print("If you need help you're already fucked sorry\n");
+    exit();
 
 }
