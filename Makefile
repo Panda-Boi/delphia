@@ -14,15 +14,9 @@ ASM_OBJ := $(patsubst ./src/kernel/%, ./build/%, $(patsubst %.asm,%.o, $(ASM_SRC
 
 all: floppy
 
-# compiling all the c source files into object files
-$(BUILD)/%.o: $(SRC)/kernel/%.c
-	@$(CC) $(CCFLAGS) -o $@ -c $<
-	@echo "Compiled" $<
-
-# assembling all the asm source files into object files
-$(BUILD)/%.o: $(SRC)/kernel/%.asm
-	@$(ASM) $(ASMFLAGS) -o $@ $<
-	@echo "Assembled" $<
+#
+# BOOTLOADER
+#
 
 # building the stage1 binary
 $(BUILD)/bootloader/stage1.bin: $(SRC)/bootloader/stage1.asm
@@ -38,6 +32,20 @@ $(BUILD)/bootloader/stage2.bin: $(SRC)/bootloader/stage2.asm
 $(BUILD)/bootloader/bootloader.bin: $(BUILD)/bootloader/stage1.bin $(BUILD)/bootloader/stage2.bin
 	@cat $^ > $@
 	@echo "Built bootloader.bin\n============================"
+
+#
+# KERNEL
+#
+
+# compiling all the c source files into object files
+$(BUILD)/%.o: $(SRC)/kernel/%.c
+	@$(CC) $(CCFLAGS) -o $@ -c $<
+	@echo "Compiled" $<
+
+# assembling all the asm source files into object files
+$(BUILD)/%.o: $(SRC)/kernel/%.asm
+	@$(ASM) $(ASMFLAGS) -o $@ $<
+	@echo "Assembled" $<
 
 # building the complete kernel binary
 $(BUILD)/kernel.bin: $(ASM_OBJ) $(C_OBJ)
