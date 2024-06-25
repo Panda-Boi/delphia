@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 #include "string.h"
+#include "x86.h"
 
 // VGA Hardware text mode color constants
 enum vga_color {
@@ -48,6 +49,3 @@ void screen_clear();
 
 static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg);
 static inline uint16_t vga_entry(unsigned char uc, uint8_t color);
-
-static inline void outb(uint16_t port, uint8_t val);
-static inline uint8_t inb(uint16_t port);

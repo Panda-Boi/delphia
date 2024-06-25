@@ -208,26 +208,26 @@ uint16_t get_vga_entry_at(size_t x, size_t y) {
 }
 
 void enable_cursor(uint8_t cursor_start, uint8_t cursor_end) {
-	outb(0x3D4, 0x0A);
-	outb(0x3D5, (inb(0x3D5) & 0xC0) | cursor_start);
+	x86_outb(0x3D4, 0x0A);
+	x86_outb(0x3D5, (x86_inb(0x3D5) & 0xC0) | cursor_start);
  
-	outb(0x3D4, 0x0B);
-	outb(0x3D5, (inb(0x3D5) & 0xE0) | cursor_end);
+	x86_outb(0x3D4, 0x0B);
+	x86_outb(0x3D5, (x86_inb(0x3D5) & 0xE0) | cursor_end);
 }
 
 void disable_cursor() {
-	outb(0x3D4, 0x0A);
-	outb(0x3D5, 0x20);
+	x86_outb(0x3D4, 0x0A);
+	x86_outb(0x3D5, 0x20);
 }
 
 
 void update_cursor(int x, int y) {
 	uint16_t pos = y * VGA_WIDTH + x;
  
-	outb(0x3D4, 0x0F);
-	outb(0x3D5, (uint8_t) (pos & 0xFF));
-	outb(0x3D4, 0x0E);
-	outb(0x3D5, (uint8_t) ((pos >> 8) & 0xFF));
+	x86_outb(0x3D4, 0x0F);
+	x86_outb(0x3D5, (uint8_t) (pos & 0xFF));
+	x86_outb(0x3D4, 0x0E);
+	x86_outb(0x3D5, (uint8_t) ((pos >> 8) & 0xFF));
 }
 
 // returns vga color byte from foreground and background colors
@@ -238,21 +238,4 @@ static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {
 // returns 2 byte text mode entry from char and color byte
 static inline uint16_t vga_entry(unsigned char uc, uint8_t color) {
 	return (uint16_t) uc | (uint16_t) color << 8;
-}
-
-static inline void outb(uint16_t port, uint8_t val) {
-    __asm__ volatile ( "outb %b0, %w1" : : "a"(val), "Nd"(port) : "memory");
-    /* There's an outb %al, $imm8 encoding, for compile-time constant port numbers that fit in 8b. (N constraint).
-     * Wider immediate constants would be truncated at assemble-time (e.g. "i" constraint).
-     * The  outb  %al, %dx  encoding is the only option for all other cases.
-     * %1 expands to %dx because  port  is a uint16_t.  %w1 could be used if we had the port number a wider C type */
-}
-
-static inline uint8_t inb(uint16_t port) {
-    uint8_t ret;
-    __asm__ volatile ( "inb %w1, %b0"
-                   : "=a"(ret)
-                   : "Nd"(port)
-                   : "memory");
-    return ret;
 }
