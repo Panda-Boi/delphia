@@ -1,17 +1,25 @@
 # Project Delphia
-An OS written entirely from scratch
->Including the bootloader
+An OS written entirely from scratch (for some reason)
+>Including the bootloader (for some reason)
 
 ## Currently Working
 - Bootloader that sets up the GDT and enters protected mode
-- Basic Kernel written in C with a ***very*** limited terminal
+- Basic Kernel written in C
 - FAT12 Support (Read Only for now)
+- Basic Shell
 
 ## TODO
-- Keyboard Handling
-- Basic Shell
 - Interrupts
 - Memory Manager
+
+## Files
+The floppy.img file that is created on running make is formatted with the FAT12 file system (the only one supported at the moment). mcopy can be used to write files to the image if you want to access them from inside Delphia.
+
+## Building
+Build the project using:
+`make`
+Clean the build directory using:
+`make clean`
 
 ## Running
 Building the OS requires a C Cross-Compiler. Building one is way too tedious of a process to be included here currently but perhaps will be in the future.
