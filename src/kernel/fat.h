@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -27,6 +29,9 @@ size_t initialize_fat(void* address, DISK* disk);
 
 /* Finds the file with the given name in the root directory and returns its properties */
 ROOT_DIR_ENTRY* file_find(char* file_name);
+
+/* Finds the file with the given id in the root directory and returns its properties */
+ROOT_DIR_ENTRY* file_id(size_t id);
 
 /* Reads a file with the given name into memory at the address given
 Ensure there is enough space at the address to fit the entire file

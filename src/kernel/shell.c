@@ -5,6 +5,9 @@ typedef enum {
     EXIT = 1,
     ECHO = 2,
     HELP = 3,
+    CLEAR = 4,
+    DIR = 5,
+    CAT = 6,
 } com_type;
 
 typedef struct {
@@ -19,6 +22,9 @@ void run_command(command com);
 void exit();
 void echo(command com);
 void help();
+void clear();
+void dir();
+void cat(command cmd);
 
 char* current_command;
 char* command_head;
@@ -103,6 +109,12 @@ command parse_command() {
         com.type = ECHO;
     } else if (strcmp(current_command, "HELP")) {
         com.type = HELP;
+    } else if (strcmp(current_command, "CLEAR")) {
+        com.type = CLEAR;
+    } else if (strcmp(current_command, "DIR")) {
+        com.type = DIR;
+    } else if (strcmp(current_command, "CAT")) {
+        com.type = CAT;
     } else {
         com.type = ERROR;
     }
@@ -125,6 +137,15 @@ void run_command(command com) {
         break;
     case HELP:
         help();
+        break;
+    case CLEAR:
+        clear();
+        break;
+    case DIR:
+        dir();
+        break;
+    case CAT:
+        cat(com);
         break;
     }
 
@@ -158,5 +179,73 @@ void help() {
 
     print("If you need help you're already fucked sorry\n");
     exit();
+
+}
+
+void clear() {
+
+    terminal_clear();
+
+}
+
+void dir() {
+
+    size_t i = 1;
+    while (true) {
+        
+        ROOT_DIR_ENTRY* entry = file_id(i);
+
+        if (!entry->first_cluster_low) {
+            break;
+        }
+
+        char name[12];
+        strcpy(entry->name, name, 11);
+        name[11] = '\0';
+
+        print(name);
+        print("  ");
+        
+        print_int(entry->size);
+        print(" bytes");
+        print("\n");
+
+        i++;
+
+    }
+
+    print_int(i-1);
+    print(" FILE(S)\n");
+
+}
+
+void cat(command cmd) {
+
+    if (cmd.argc != 2) {
+        print("Incorrect Usage...\n");
+        return;
+    }
+
+    // get second argument
+    char* file_name = cmd.argv;
+    file_name += strlen(cmd.argv) + 1;
+    file_name = to_upper(file_name);
+
+    char* buffer = command_head;
+
+    ROOT_DIR_ENTRY* file = file_find(file_name);
+
+    if (!file_read(file_name, buffer) || !file) {
+        print("File named ");
+        print(file_name);
+        print(" not found...\n");
+        return;
+    }
+
+    // byte dumping instead of printing
+    size_t len = file->size;
+    for (int i=0;i<len;i++) {
+        putc(buffer[i]);
+    }
 
 }

@@ -71,6 +71,8 @@ size_t strtok(char* str, char delimiter) {
         i++;
     }
 
+    count++;
+
     return count;
 
 }

@@ -34,6 +34,7 @@ typedef struct {
 
 uint32_t cluster_to_lba(uint16_t cluster, DISK* disk);
 uint16_t next_cluster(uint16_t current_cluster);
+bool to_fat_fname(char* fname, char* fat_fname);
 
 DISK* current_disk;
 FAT12_HEADER* header;
@@ -77,6 +78,10 @@ bool file_read(char* file_name, void* address) {
 
     ROOT_DIR_ENTRY* file = file_find(file_name);
 
+    if (!file) {
+        return false;
+    }
+
     size_t clusters_count = (file->size + header->bytes_per_sector - 1) / header->bytes_per_sector;
     clusters_count /= header->sectors_per_cluster;
     
@@ -93,12 +98,19 @@ bool file_read(char* file_name, void* address) {
 
     }
 
+    return true;
 
 }
 
 ROOT_DIR_ENTRY* file_find(char* file_name) {
 
     file_name = to_upper(file_name);
+    char fat_fname[12];
+    
+    // incorrect file name, return null
+    if (!to_fat_fname(file_name, fat_fname)) {
+        return NULL;
+    }
 
     for (int i=0;i<header->dir_entries_count;i++) {
 
@@ -107,13 +119,19 @@ ROOT_DIR_ENTRY* file_find(char* file_name) {
         strcpy(root_dir_entries[i].name, name, 11);
         name[11] = '\0';
 
-        if (strcmp(name, file_name)) {
+        if (strcmp(name, fat_fname)) {
             return &root_dir_entries[i];
         }
     }
 
     // file not found
     return NULL;
+
+}
+
+ROOT_DIR_ENTRY* file_id(size_t id) {
+
+    return &root_dir_entries[id];
 
 }
 
@@ -141,5 +159,39 @@ uint32_t cluster_to_lba(uint16_t cluster, DISK* disk) {
                         + (header->dir_entries_count * 32) / header->bytes_per_sector; // root dir sectors
     
     return data_sector + cluster - 2;
+
+}
+
+bool to_fat_fname(char* fname, char* fat_fname) {
+
+    size_t len = strlen(fname);
+
+    size_t i = 0;
+    while(fname[i] != '.') {
+        if (i >= len || i > 8) {
+            return false;
+        }
+        i++;
+    }
+
+    if (len - i != 4) {
+        return false;
+    }
+
+    strcpy(fname, fat_fname, i);
+
+    // move fname pointer to the file extension
+    fname += i + 1;
+
+    while (i < 8) {
+        fat_fname[i] = ' ';
+        i++;
+    }
+
+    strcpy(fname, (fat_fname + 8), 3);
+
+    fat_fname[11] = '\0';
+
+    return true;
 
 }

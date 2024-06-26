@@ -59,6 +59,7 @@ floppy: $(BUILD)/bootloader/bootloader.bin $(BUILD)/kernel.bin
 	@dd if=$(BUILD)/bootloader/bootloader.bin of=$(BUILD)/floppy.img conv=notrunc status=progress 2>/dev/null
 	@mcopy -i $(BUILD)/floppy.img $(BUILD)/kernel.bin "::kernel.bin"
 	@mcopy -i $(BUILD)/floppy.img files/test.txt "::test.txt"
+	@mcopy -i $(BUILD)/floppy.img files/metal.txt "::metal.txt"
 	@echo "Created floppy.img"
 
 clean:

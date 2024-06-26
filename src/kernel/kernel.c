@@ -25,7 +25,18 @@ extern void main(){
         print_int(BOOT_DRIVE);
         print("...");
     } else {
-        print(" Done\n");
+
+        size_t fat_size = initialize_fat(buffer, &disk);
+
+        if (!fat_size) {
+            print("Couldn't initialize fat...\n");
+        } else {
+
+            buffer += fat_size;
+
+            print(" Done\n");
+        }
+
     }
 
     print("Press any key to enter the shell...");
