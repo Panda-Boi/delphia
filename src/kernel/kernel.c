@@ -10,11 +10,17 @@
 #include "shell.h"
 #include "keyboard.h"
 
+#include "gdt.h"
+#include "idt.h"
+
 #define BOOT_DRIVE 0
 
 void* buffer = (void*) MEM_BUFFER;
 
 extern void main(){
+
+    i686_GDT_Initialize();
+    //i686_IDT_Initialize();    
 
     terminal_initialize();
 
