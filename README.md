@@ -2,6 +2,8 @@
 An OS written entirely from scratch (for some reason)
 >Including the bootloader (for some reason)
 
+![alt text](images/image.png "WIP Shell")
+
 ## Currently Working
 - Bootloader that sets up the GDT and enters protected mode
 - Basic Kernel written in C
