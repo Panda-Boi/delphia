@@ -59,7 +59,10 @@ void initialize_shell(void* buffer, DISK disk) {
 
             if (c == '\b') {
                 if (command_head != current_command) {
+                    *command_head = 0;
                     command_head--;
+                    
+                    // echo char
                     printc(c);
                 }
                 continue;
