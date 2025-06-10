@@ -6,6 +6,10 @@
 #include "string.h"
 #include "x86.h"
 
+// Screen Width and Height
+static const size_t VGA_WIDTH = 80;
+static const size_t VGA_HEIGHT = 25;
+
 // VGA Hardware text mode color constants
 enum vga_color {
 	VGA_COLOR_BLACK = 0,
@@ -34,6 +38,7 @@ void terminal_scroll();
 
 void printc(char c);
 void print(char* str);
+void print_line(char* str);
 void print_int(size_t integer);
 void print_hex(size_t integer);
 void putc(char c);

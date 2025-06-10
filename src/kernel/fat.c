@@ -81,6 +81,7 @@ bool file_read(char* file_name, void* address) {
     DIR_ENTRY* file = file_find(file_name);
 
     if (!file) {
+        print("File with the given name does not exist\n");
         return false;
     }
 

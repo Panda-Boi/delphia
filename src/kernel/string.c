@@ -40,7 +40,7 @@ void strcpy(const char* str1, char* str2, size_t len) {
     
 }
 
-size_t strtok(char* str, char delimiter) {
+size_t strtok(char* str, char delimiter, bool nullify) {
 
     size_t count = 0;
 
@@ -57,7 +57,9 @@ size_t strtok(char* str, char delimiter) {
                 continue;
             }
 
-            *str = '\0';
+            if (nullify) {
+                *str = '\0';
+            }
             str++;
             i++;
             current_token = str;
@@ -74,6 +76,19 @@ size_t strtok(char* str, char delimiter) {
     count++;
 
     return count;
+
+}
+
+char* strchr(char* str, char c) {
+
+    while (*str) {
+        if (*str == c) {
+            return str;
+        }
+        str++;
+    }
+
+    return NULL;
 
 }
 
@@ -103,4 +118,8 @@ char* to_lower(char* str) {
 
     return str;
 
+}
+
+bool is_int(char c) {
+   return true ? (c >= '0' || c <= '9') : false;
 }

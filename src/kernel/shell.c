@@ -10,6 +10,7 @@ typedef enum {
     CAT = 6,
     TOUCH = 7,
     RM = 8,
+    EDIT = 9
 } com_type;
 
 typedef struct {
@@ -29,6 +30,7 @@ void dir();
 void touch(command cmd);
 void remove(command cmd);
 void cat(command cmd);
+void edit(command cmd);
 
 char* current_command;
 char* command_head;
@@ -109,7 +111,7 @@ command parse_command() {
     *command_head = '\0';
 
     command com;
-    com.argc = strtok(current_command, ' ');
+    com.argc = strtok(current_command, ' ', true);
     com.argv = current_command;
 
     current_command = to_upper(current_command);
@@ -130,6 +132,8 @@ command parse_command() {
         com.type = TOUCH;
     } else if (strcmp(current_command, "RM")) {
         com.type = RM;
+    } else if (strcmp(current_command, "EDIT")) {
+        com.type = EDIT;
     } else {
         com.type = ERROR;
     }
@@ -167,6 +171,9 @@ void run_command(command com) {
         break;
     case RM:
         remove(com);
+        break;
+    case EDIT:
+        edit(com);
         break;
     }
 
@@ -287,7 +294,6 @@ void cat(command cmd) {
     // get second argument
     char* file_name = cmd.argv;
     file_name += strlen(cmd.argv) + 1;
-    file_name = to_upper(file_name);
 
     char* buffer = command_head;
 
@@ -306,4 +312,173 @@ void cat(command cmd) {
         putc(buffer[i]);
     }
 
+}
+
+// void edit_line(char* buffer, int current_line) {
+//     for (int i = 0; i < current_line; i++) {
+//         buffer = strchr(buffer, '\n') + 1;
+//     }
+
+//     char* line_end = strchr(buffer, '\n');
+//     char saved[1024] = { 0 };
+//     strcpy(saved, line_end);
+//     scanf("%s", buffer);
+//     strcpy(buffer + strlen(buffer), saved);
+// }
+
+void edit(command cmd) {
+
+    if (cmd.argc != 2) {
+        print("Incorrect Usage...\n");
+        return;
+    }
+
+    // get second argument
+    char* file_name = cmd.argv;
+    file_name += strlen(cmd.argv) + 1;
+
+    char file_buffer[1024] = {0};
+
+    file_read(file_name, file_buffer);
+
+    while(true) {
+
+        clear();
+        print(file_name);
+        print("\n===============\n");
+
+        size_t lines_count = 0;
+        char* fb = file_buffer;
+        while(true) {
+
+            print_int(lines_count);
+            print(" | ");
+            print_line(fb);
+
+            fb = strchr(fb, '\n');
+
+            if (fb == NULL) {
+                break;
+            }
+            
+            fb++;
+            lines_count++;
+
+        }
+
+        size_t blank = VGA_HEIGHT - lines_count - 3;
+        for (int i=0;i<blank;i++){
+            print("\n");
+        }
+
+        print("EDIT>");
+
+        char input_buffer[64] = {0};
+        size_t i = 0;
+        while (true) {
+            char in = keyboard_getinput();
+
+            // enter to finish command
+            if (in == '\n') {
+                break;
+            }
+
+            if (!in) {
+                continue;
+            }
+
+            // backspace
+            if (in == '\b') {
+
+                if (i == 0) {
+                    continue;
+                } 
+
+                i--;
+                input_buffer[i] = 0;
+                printc(in);
+                continue;
+            }
+
+            input_buffer[i] = in;
+            i++;
+
+            printc(in);
+
+        }
+
+        // exit if q
+        if (strcmp(input_buffer, "q")) {
+            break;
+        }
+
+        // write buffer to disk if w
+        if (strcmp(input_buffer, "w")) {
+            file_write(file_name, file_buffer, strlen(file_buffer));
+        }
+
+        size_t input_len = strlen(input_buffer);
+        size_t tokens = strtok(input_buffer, ':', true);
+
+        // incorrect format
+        if (tokens != 2) {
+            continue;
+        }
+
+        if (input_buffer[0] == 'a') {
+            fb = file_buffer;
+            fb += strlen(fb);
+            *fb = '\n';
+            fb++;
+            
+            char* updated_line = input_buffer + strlen(input_buffer) + 1;
+            updated_line[strlen(updated_line)] = '\0';
+    
+            strcpy(updated_line, fb, strlen(updated_line) + 1);
+            continue;
+        }
+
+        if (!is_int(input_buffer[0])) {
+            continue;
+        }
+
+        size_t line = input_buffer[0] - '0';
+        
+        fb = file_buffer;
+        char swap_buffer[1024] = {0};
+        char* sb = swap_buffer;
+        for (int i=0;i<line;i++) {
+            strcpy(fb, sb, strlen(fb) + 1);
+            fb = strchr(fb, '\n') + 1;
+            sb = strchr(sb, '\n') + 1;
+        }
+
+        char* updated_line = input_buffer + strlen(input_buffer) + 1;
+        strcpy(updated_line, sb, strlen(updated_line));
+
+        fb = strchr(fb, '\n') + 1;
+        sb = strchr(sb, '\n') + 1;
+
+        for (int i=line+1;i<lines_count;i++){
+            strcpy(fb, sb, strlen(fb) + 1);
+            fb = strchr(fb, '\n') + 1;
+            sb = strchr(sb, '\n') + 1;
+        }
+        
+        strcpy(swap_buffer, file_buffer, 1024);
+    
+    }
+
+    print("\n");
+
+    return;
+
+    // int current_line = 0;
+    // scanf("%d", &current_line);
+    // edit_line(buffer, current_line);
+
+    // f = fopen(argv[1], "w");
+    // fwrite(buffer, strlen(buffer), 1, f);
+
+    // fclose(f);
 }

@@ -1,8 +1,5 @@
 #include "terminal.h"
 
-static const size_t VGA_WIDTH = 80;
-static const size_t VGA_HEIGHT = 25;
-
 size_t terminal_row;
 size_t terminal_column;
 uint8_t terminal_color;
@@ -12,6 +9,21 @@ uint16_t* terminal_buffer;
 void print(char* str) {
 
     puts(str, strlen(str));
+    update_cursor(terminal_column, terminal_row);
+
+}
+
+// print until the next newline character
+void print_line(char* str) {
+
+    char* end = strchr(str, '\n');
+    // if cannot find a newline, print until \0 instead
+    if (!end) {
+        print(str);
+        return;
+    }
+    puts(str, (end - str + 1));
+    update_cursor(terminal_column, terminal_row);
 
 }
 
@@ -174,7 +186,6 @@ void puts(char* str, size_t len) {
         putc(str[i]);
     }
 
-    update_cursor(terminal_column, terminal_row);
 }
 
 // writes a character at the current character cell
