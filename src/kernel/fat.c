@@ -248,6 +248,50 @@ bool file_write(char* file_name, void* address, size_t len_bytes){
     return false;
 }
 
+bool file_delete(char* file_name) {
+
+    if (strlen(file_name) > 11) {
+        print("Given name is longer than 11 characters, file write failed...\n");
+        return false;
+    }
+
+    // check if file with given name exists
+    DIR_ENTRY* file = file_find(file_name);
+
+    if (!file) {
+        print("File with the given name does not exist\n");
+        return false;
+    }
+
+    // update fat in memory
+    uint16_t current_cluster = file->first_cluster_low;
+    while(current_cluster) {
+        uint16_t temp = next_cluster(current_cluster);
+        update_cluster(current_cluster, 0);
+        current_cluster = temp;
+    }
+
+    // update root dir in memory
+    *file = (DIR_ENTRY) {
+        .name = {0xE5, 0},
+        0
+    };
+
+    // write to the fats on disk
+    for (int i=0;i<header->fat_count;i++) {
+        uint32_t fat_lba = fat_to_lba(i, current_disk);
+        DISK_WriteSectors(current_disk, fat_lba, header->sectors_per_fat, file_allocation_table);
+    }
+
+    // write to the root dir on disk
+    size_t root_dir_sector = header->reserved_sectors + (header->fat_count * header->sectors_per_fat);
+    size_t root_dir_sectors_count = (header->root_dir_entries_count * 32) / header->bytes_per_sector; // size of entry = 32 bytes, 512 bytes per sector
+    DISK_WriteSectors(current_disk, root_dir_sector, root_dir_sectors_count, root_dir_entries);
+
+    return true;
+
+}
+
 DIR_ENTRY* file_find(char* file_name) {
 
     file_name = to_upper(file_name);

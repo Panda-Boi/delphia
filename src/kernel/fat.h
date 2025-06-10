@@ -50,3 +50,7 @@ bool file_read(char* file_name, void* address);
 If file with given name already exists, it is overwritten, a new file is created otherwise
 Returns true if succesful or false if failed */
 bool file_write(char* file_name, void* address, size_t len_bytes);
+
+/* Deletes a file with given name from the filesystem
+Returns true if succesfull or false if failed*/
+bool file_delete(char* file_name);

@@ -9,6 +9,7 @@ typedef enum {
     DIR = 5,
     CAT = 6,
     TOUCH = 7,
+    RM = 8,
 } com_type;
 
 typedef struct {
@@ -26,6 +27,7 @@ void help();
 void clear();
 void dir();
 void touch(command cmd);
+void remove(command cmd);
 void cat(command cmd);
 
 char* current_command;
@@ -126,6 +128,8 @@ command parse_command() {
         com.type = CAT;
     } else if (strcmp(current_command, "TOUCH")) {
         com.type = TOUCH;
+    } else if (strcmp(current_command, "RM")) {
+        com.type = RM;
     } else {
         com.type = ERROR;
     }
@@ -160,6 +164,9 @@ void run_command(command com) {
         break;
     case TOUCH:
         touch(com);
+        break;
+    case RM:
+        remove(com);
         break;
     }
 
@@ -205,11 +212,19 @@ void clear() {
 void dir() {
 
     size_t i = 1;
+    size_t count = 0;
     while (true) {
         
         DIR_ENTRY* entry = file_id(i);
 
         if (!entry->first_cluster_low) {
+
+            // deleted entry
+            if (entry->name[0] == 0xE5) {
+                i++;
+                continue;
+            }
+
             break;
         }
 
@@ -224,11 +239,12 @@ void dir() {
         print(" bytes");
         print("\n");
 
+        count++;
         i++;
 
     }
 
-    print_int(i-1);
+    print_int(count);
     print(" FILE(S)\n");
 
 }
@@ -245,6 +261,20 @@ void touch(command cmd) {
     file_name = to_upper(file_name);
     char* f = "";
     file_write(file_name, f, strlen(f));
+}
+
+void remove(command cmd) {
+    if (cmd.argc != 2) {
+        print("Incorrect Usage...\n");
+        return;
+    }
+
+    // get second argument
+    char* file_name = cmd.argv;
+    file_name += strlen(cmd.argv) + 1;
+    file_name = to_upper(file_name);
+    file_delete(file_name);
+
 }
 
 void cat(command cmd) {

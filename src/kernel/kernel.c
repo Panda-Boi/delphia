@@ -39,11 +39,6 @@ extern void main(){
 
     }
 
-    print("Creating a file on disk...");
-    char* f = "";
-    file_write("new.txt", f, strlen(f));
-    print("Written!\n");
-
     print("Press any key to enter the shell...");
     keyboard_getinput();
 
