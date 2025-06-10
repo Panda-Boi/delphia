@@ -11,7 +11,7 @@ typedef struct {
     uint8_t sectors_per_cluster;
     uint16_t reserved_sectors;
     uint8_t fat_count;
-    uint16_t dir_entries_count;
+    uint16_t root_dir_entries_count;
     uint16_t total_sectors;
     uint8_t media_descriptor_type;
     uint16_t sectors_per_fat;
@@ -33,12 +33,13 @@ typedef struct {
 } __attribute__((packed)) FAT12_HEADER;
 
 uint32_t cluster_to_lba(uint16_t cluster, DISK* disk);
+uint32_t fat_to_lba(size_t fat_index, DISK* disk);
 uint16_t next_cluster(uint16_t current_cluster);
 bool to_fat_fname(char* fname, char* fat_fname);
 
 DISK* current_disk;
 FAT12_HEADER* header;
-ROOT_DIR_ENTRY* root_dir_entries;
+DIR_ENTRY* root_dir_entries;
 uint8_t* file_allocation_table;
 
 size_t initialize_fat(void* address, DISK* disk) {
@@ -54,10 +55,10 @@ size_t initialize_fat(void* address, DISK* disk) {
 
     // reading the root directory into memory
     size_t root_dir_sector = header->reserved_sectors + (header->fat_count * header->sectors_per_fat);
-    size_t root_dir_sectors_count = (header->dir_entries_count * 32) / header->bytes_per_sector; // size of entry = 32 bytes, 512 bytes per sector
+    size_t root_dir_sectors_count = (header->root_dir_entries_count * 32) / header->bytes_per_sector; // size of entry = 32 bytes, 512 bytes per sector
 
     root_dir_entries = address;
-    address += sizeof(ROOT_DIR_ENTRY) * header->dir_entries_count;
+    address += sizeof(DIR_ENTRY) * header->root_dir_entries_count;
 
     DISK_ReadSectors(disk, root_dir_sector, root_dir_sectors_count, root_dir_entries);
 
@@ -65,18 +66,18 @@ size_t initialize_fat(void* address, DISK* disk) {
     file_allocation_table = address;
     address += header->sectors_per_fat * header->bytes_per_sector;
 
-    size_t fat_sector = header->reserved_sectors;
+    size_t fat_sector = header->reserved_sectors; // 0 + reserved sectors (2 sectors for the bootloader)
 
     DISK_ReadSectors(disk, fat_sector, header->sectors_per_fat, file_allocation_table);
 
-    size_t fat_metadata_size = ((void*)file_allocation_table - (void*)header) + (header->sectors_per_fat * header->bytes_per_sector);
+    size_t fat_metadata_size = ((void*)address - (void*)header); // fat header + root dir + fat
 
     return fat_metadata_size;
 }
 
 bool file_read(char* file_name, void* address) {
 
-    ROOT_DIR_ENTRY* file = file_find(file_name);
+    DIR_ENTRY* file = file_find(file_name);
 
     if (!file) {
         return false;
@@ -102,7 +103,112 @@ bool file_read(char* file_name, void* address) {
 
 }
 
-ROOT_DIR_ENTRY* file_find(char* file_name) {
+bool file_write(char* file_name, void* address, size_t len_bytes){
+
+    if (strlen(file_name) > 11) {
+        print("Given name is longer than 11 characters, file write failed...\n");
+        return false;
+    }
+
+    // determine number of clusters
+    size_t bytes_per_cluster = header->bytes_per_sector * header->sectors_per_cluster;
+    size_t clusters_count = (len_bytes + bytes_per_cluster - 1) / bytes_per_cluster;
+    size_t clusters_allocated[clusters_count + 1]; // last value is for end of chain signifier
+    size_t i = 0;
+
+    // find empty clusters
+    uint16_t current_cluster = 2;
+    while(i < clusters_count) {
+        // if next cluster is not 0, that means cluster is not empty]
+        if (next_cluster(current_cluster)) {
+            current_cluster++;
+            continue;
+        }
+
+        // current cluster is empty
+        clusters_allocated[i] = current_cluster;
+        i++;
+        current_cluster++;
+    }
+
+    // end of chain signifier
+    clusters_allocated[clusters_count] = 0xFF8;
+    
+    // write to the fat in memory
+    for (i=0;i<clusters_count;i++){
+        
+        size_t byte_offset = clusters_allocated[i] / 2 + clusters_allocated[i];
+        uint16_t* cluster_entry = (uint16_t*)(file_allocation_table + byte_offset);
+
+        if (clusters_allocated[i] % 2 == 0) {
+            // even cluster
+            // write only bottom 12 bits out of 16
+            *cluster_entry = *cluster_entry + clusters_allocated[i+1];
+        } else {
+            // odd cluster
+            // write only top 12 bits out of 16
+            *cluster_entry = (clusters_allocated[i+1] << 4) + *cluster_entry;
+        }
+    }
+
+    // write to the root dir in memory
+    // starting from 1 because id 0 is the volume info
+    for (i=1;i<header->root_dir_entries_count;i++) {
+        
+        DIR_ENTRY* entry = file_id(i);
+
+        if (entry->first_cluster_low) {
+            continue;
+        }
+
+        *entry = (DIR_ENTRY) {
+            .name = 0,
+            .attributes = ARCHIVE,
+            .reserved = 0,
+            .created_time_tenths = 0,
+            .created_time = 0,
+            .created_date = 0,
+            .accessed_date = 0,
+            .first_cluster_high = 0,
+            .modified_time = 0,
+            .modified_date = 0,
+            .first_cluster_low = clusters_allocated[0],
+            .size = len_bytes
+        };
+        if (!to_fat_fname(to_upper(file_name), entry->name)) {
+            print("Given name was not a compatible Fat file name");
+            to_fat_fname("UNDEF.BIN", entry->name);
+        }
+        break;
+    }
+    
+    // write to the fats on disk
+    for (i=0;i<header->fat_count;i++) {
+        uint32_t fat_lba = fat_to_lba(i, current_disk);
+        DISK_WriteSectors(current_disk, fat_lba, header->sectors_per_fat, file_allocation_table);
+    }
+
+    // write to the root dir on disk
+    size_t root_dir_sector = header->reserved_sectors + (header->fat_count * header->sectors_per_fat);
+    size_t root_dir_sectors_count = (header->root_dir_entries_count * 32) / header->bytes_per_sector; // size of entry = 32 bytes, 512 bytes per sector
+    DISK_WriteSectors(current_disk, root_dir_sector, root_dir_sectors_count, root_dir_entries);
+
+    // write to the clusters
+    for (i=0;i<clusters_count;i++){
+        
+        uint32_t cluster_lba = cluster_to_lba(clusters_allocated[i], current_disk);
+        size_t bytes = bytes_per_cluster ? i < clusters_count - 1 : len_bytes % bytes_per_cluster;
+
+        DISK_WriteSectors(current_disk, cluster_lba, header->sectors_per_cluster, address);
+
+        address += bytes_per_cluster;
+
+    }
+
+    return false;
+}
+
+DIR_ENTRY* file_find(char* file_name) {
 
     file_name = to_upper(file_name);
     char fat_fname[12];
@@ -112,7 +218,7 @@ ROOT_DIR_ENTRY* file_find(char* file_name) {
         return NULL;
     }
 
-    for (int i=0;i<header->dir_entries_count;i++) {
+    for (int i=0;i<header->root_dir_entries_count;i++) {
 
         // create null terminated string from root dir entry
         char name[12];
@@ -129,37 +235,46 @@ ROOT_DIR_ENTRY* file_find(char* file_name) {
 
 }
 
-ROOT_DIR_ENTRY* file_id(size_t id) {
+DIR_ENTRY* file_id(size_t id) {
 
     return &root_dir_entries[id];
 
 }
 
+// Returns 0 if there is no next cluster
 uint16_t next_cluster(uint16_t current_cluster) {
 
     size_t byte_offset = current_cluster / 2 + current_cluster;
-    uint16_t cluster_entry = *(file_allocation_table + byte_offset);
+    uint16_t cluster_entry = *(uint16_t*)(file_allocation_table + byte_offset);
+
+    uint16_t next_cluster;
 
     if (current_cluster % 2 == 0) {
         // even cluster
         // return only bottom 12 bits out of 16
-        return (cluster_entry & 0x0FFF);
+        next_cluster = (cluster_entry & 0x0FFF);
     } else {
         // odd cluster
         // return only top 12 bits out of 16
-        return (cluster_entry >> 4);
+        next_cluster = (cluster_entry >> 4);
     }
 
+    // return 0 if next cluster is end of chain, i.e. no next cluster
+    return 0 ? next_cluster >= 0xFF8 : next_cluster;
 }
 
 uint32_t cluster_to_lba(uint16_t cluster, DISK* disk) {
 
     uint32_t data_sector = header->reserved_sectors // reserved sectors
                         + (header->fat_count * header->sectors_per_fat) // fat sectors
-                        + (header->dir_entries_count * 32) / header->bytes_per_sector; // root dir sectors
+                        + (header->root_dir_entries_count * 32) / header->bytes_per_sector; // root dir sectors
     
     return data_sector + cluster - 2;
 
+}
+
+uint32_t fat_to_lba(size_t fat_index, DISK* disk) {
+    return header->reserved_sectors + (fat_index * header->sectors_per_fat);
 }
 
 bool to_fat_fname(char* fname, char* fat_fname) {

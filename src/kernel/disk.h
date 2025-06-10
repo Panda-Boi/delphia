@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -24,3 +25,8 @@ bool DISK_Initialize(DISK* disk, uint8_t driveNumber);
 
 Output: Reads the required sectors into memory starting at the address given; returns false if failed */
 bool DISK_ReadSectors(DISK* disk, uint32_t lba, uint8_t sectors, void* lowerDataOut);
+
+/* Input: Pointer to the disk struct of the disk you want to read, the lba address, no of sectors to be written, pointer to the memory address from which to write the data
+
+Output: Reads the required sectors into memory starting at the address given; returns false if failed */
+bool DISK_WriteSectors(DISK* disk, uint32_t lba, uint8_t sectors, void* lowerDataIn);

@@ -79,6 +79,10 @@ void initialize_shell(void* buffer, DISK disk) {
 
                 // parse the current command
                 command com = parse_command();
+                size_t len = command_head - current_command;
+                for (int i=0;i<len;i++) {
+                    command_head[i] = 0;
+                }
                 command_head = current_command;
 
                 run_command(com);
@@ -196,7 +200,7 @@ void dir() {
     size_t i = 1;
     while (true) {
         
-        ROOT_DIR_ENTRY* entry = file_id(i);
+        DIR_ENTRY* entry = file_id(i);
 
         if (!entry->first_cluster_low) {
             break;
@@ -236,7 +240,7 @@ void cat(command cmd) {
 
     char* buffer = command_head;
 
-    ROOT_DIR_ENTRY* file = file_find(file_name);
+    DIR_ENTRY* file = file_find(file_name);
 
     if (!file_read(file_name, buffer) || !file) {
         print("File named ");
