@@ -8,6 +8,7 @@ typedef enum {
     CLEAR = 4,
     DIR = 5,
     CAT = 6,
+    TOUCH = 7,
 } com_type;
 
 typedef struct {
@@ -24,6 +25,7 @@ void echo(command com);
 void help();
 void clear();
 void dir();
+void touch(command cmd);
 void cat(command cmd);
 
 char* current_command;
@@ -122,6 +124,8 @@ command parse_command() {
         com.type = DIR;
     } else if (strcmp(current_command, "CAT")) {
         com.type = CAT;
+    } else if (strcmp(current_command, "TOUCH")) {
+        com.type = TOUCH;
     } else {
         com.type = ERROR;
     }
@@ -153,6 +157,9 @@ void run_command(command com) {
         break;
     case CAT:
         cat(com);
+        break;
+    case TOUCH:
+        touch(com);
         break;
     }
 
@@ -224,6 +231,20 @@ void dir() {
     print_int(i-1);
     print(" FILE(S)\n");
 
+}
+
+void touch(command cmd) {
+    if (cmd.argc != 2) {
+        print("Incorrect Usage...\n");
+        return;
+    }
+
+    // get second argument
+    char* file_name = cmd.argv;
+    file_name += strlen(cmd.argv) + 1;
+    file_name = to_upper(file_name);
+    char* f = "";
+    file_write(file_name, f, strlen(f));
 }
 
 void cat(command cmd) {

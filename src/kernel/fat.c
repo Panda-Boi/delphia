@@ -35,6 +35,7 @@ typedef struct {
 uint32_t cluster_to_lba(uint16_t cluster, DISK* disk);
 uint32_t fat_to_lba(size_t fat_index, DISK* disk);
 uint16_t next_cluster(uint16_t current_cluster);
+bool update_cluster(uint16_t cluster, uint16_t updated_value);
 bool to_fat_fname(char* fname, char* fat_fname);
 
 DISK* current_disk;
@@ -114,76 +115,115 @@ bool file_write(char* file_name, void* address, size_t len_bytes){
     size_t bytes_per_cluster = header->bytes_per_sector * header->sectors_per_cluster;
     size_t clusters_count = (len_bytes + bytes_per_cluster - 1) / bytes_per_cluster;
     size_t clusters_allocated[clusters_count + 1]; // last value is for end of chain signifier
-    size_t i = 0;
 
-    // find empty clusters
-    uint16_t current_cluster = 2;
-    while(i < clusters_count) {
-        // if next cluster is not 0, that means cluster is not empty]
-        if (next_cluster(current_cluster)) {
-            current_cluster++;
-            continue;
+    // check if file with given name already exists
+    DIR_ENTRY* file = file_find(file_name);
+    if (file) {
+        // must update existing clusters
+        uint16_t current_cluster = file->first_cluster_low;
+        size_t i = 0;
+        bool all_clusters_used = false;
+        for (i=0;i<clusters_count;i++) {
+            clusters_allocated[i] = current_cluster;
+            current_cluster = next_cluster(current_cluster);
+
+            // break if cluster chain is finished
+            if (!current_cluster) {
+                all_clusters_used = true;
+                break;
+            }
         }
 
-        // current cluster is empty
-        clusters_allocated[i] = current_cluster;
-        i++;
-        current_cluster++;
+        // if not all existing clusters will be used, set extra clusters as empty
+        if (!all_clusters_used) {
+            while(current_cluster) {
+                uint16_t temp = next_cluster(current_cluster);
+                update_cluster(current_cluster, 0);
+                current_cluster = temp;
+            }
+        }
+
+        // there were not enough clusters already allocated
+        if (i < clusters_count) {
+            // find empty clusters
+            uint16_t current_cluster = 2;
+            while(i < clusters_count) {
+                // if next cluster is not 0, that means cluster is not empty]
+                if (next_cluster(current_cluster)) {
+                    current_cluster++;
+                    continue;
+                }
+                
+                // current cluster is empty
+                clusters_allocated[i] = current_cluster;
+                i++;
+                current_cluster++;
+            }
+        }
+
+    } else {
+        // find empty clusters
+        uint16_t current_cluster = 2;
+        size_t i = 0;
+        while(i < clusters_count) {
+            // if next cluster is not 0, that means cluster is not empty]
+            if (next_cluster(current_cluster)) {
+                current_cluster++;
+                continue;
+            }
+
+            // current cluster is empty
+            clusters_allocated[i] = current_cluster;
+            i++;
+            current_cluster++;
+        }
     }
 
     // end of chain signifier
     clusters_allocated[clusters_count] = 0xFF8;
     
     // write to the fat in memory
-    for (i=0;i<clusters_count;i++){
-        
-        size_t byte_offset = clusters_allocated[i] / 2 + clusters_allocated[i];
-        uint16_t* cluster_entry = (uint16_t*)(file_allocation_table + byte_offset);
-
-        if (clusters_allocated[i] % 2 == 0) {
-            // even cluster
-            // write only bottom 12 bits out of 16
-            *cluster_entry = *cluster_entry + clusters_allocated[i+1];
-        } else {
-            // odd cluster
-            // write only top 12 bits out of 16
-            *cluster_entry = (clusters_allocated[i+1] << 4) + *cluster_entry;
-        }
+    for (int i=0;i<clusters_count;i++){
+        update_cluster(clusters_allocated[i], clusters_allocated[i+1]);
     }
 
     // write to the root dir in memory
+
+    // find a spot to write a new dir entry if one doesnt exist already
     // starting from 1 because id 0 is the volume info
-    for (i=1;i<header->root_dir_entries_count;i++) {
-        
-        DIR_ENTRY* entry = file_id(i);
-
-        if (entry->first_cluster_low) {
-            continue;
-        }
-
-        *entry = (DIR_ENTRY) {
-            .name = 0,
-            .attributes = ARCHIVE,
-            .reserved = 0,
-            .created_time_tenths = 0,
-            .created_time = 0,
-            .created_date = 0,
-            .accessed_date = 0,
-            .first_cluster_high = 0,
-            .modified_time = 0,
-            .modified_date = 0,
-            .first_cluster_low = clusters_allocated[0],
-            .size = len_bytes
-        };
-        if (!to_fat_fname(to_upper(file_name), entry->name)) {
-            print("Given name was not a compatible Fat file name");
-            to_fat_fname("UNDEF.BIN", entry->name);
-        }
-        break;
-    }
+    if (!file) {
+        for (int i=1;i<header->root_dir_entries_count;i++) {
+            DIR_ENTRY* entry = file_id(i);
     
+            if (!entry->first_cluster_low) {
+                file = entry;
+                break;
+            }
+        }
+    }
+
+    // update file entry
+    *file = (DIR_ENTRY) {
+        .name = 0,
+        .attributes = ARCHIVE,
+        .reserved = 0,
+        .created_time_tenths = 0,
+        .created_time = 0,
+        .created_date = 0,
+        .accessed_date = 0,
+        .first_cluster_high = 0,
+        .modified_time = 0,
+        .modified_date = 0,
+        .first_cluster_low = clusters_allocated[0],
+        .size = len_bytes
+    };
+    if (!to_fat_fname(to_upper(file_name), file->name)) {
+        print("Given name was not a compatible Fat file name");
+        to_fat_fname("UNDEF.BIN", file->name);
+    }
+
     // write to the fats on disk
-    for (i=0;i<header->fat_count;i++) {
+    for (int i=0;i<header->fat_count;i++) {
         uint32_t fat_lba = fat_to_lba(i, current_disk);
         DISK_WriteSectors(current_disk, fat_lba, header->sectors_per_fat, file_allocation_table);
     }
@@ -194,7 +234,7 @@ bool file_write(char* file_name, void* address, size_t len_bytes){
     DISK_WriteSectors(current_disk, root_dir_sector, root_dir_sectors_count, root_dir_entries);
 
     // write to the clusters
-    for (i=0;i<clusters_count;i++){
+    for (int i=0;i<clusters_count;i++){
         
         uint32_t cluster_lba = cluster_to_lba(clusters_allocated[i], current_disk);
         size_t bytes = bytes_per_cluster ? i < clusters_count - 1 : len_bytes % bytes_per_cluster;
@@ -242,14 +282,14 @@ DIR_ENTRY* file_id(size_t id) {
 }
 
 // Returns 0 if there is no next cluster
-uint16_t next_cluster(uint16_t current_cluster) {
+uint16_t next_cluster(uint16_t cluster) {
 
-    size_t byte_offset = current_cluster / 2 + current_cluster;
+    size_t byte_offset = cluster / 2 + cluster;
     uint16_t cluster_entry = *(uint16_t*)(file_allocation_table + byte_offset);
 
     uint16_t next_cluster;
 
-    if (current_cluster % 2 == 0) {
+    if (cluster % 2 == 0) {
         // even cluster
         // return only bottom 12 bits out of 16
         next_cluster = (cluster_entry & 0x0FFF);
@@ -261,6 +301,24 @@ uint16_t next_cluster(uint16_t current_cluster) {
 
     // return 0 if next cluster is end of chain, i.e. no next cluster
     return 0 ? next_cluster >= 0xFF8 : next_cluster;
+}
+
+// Returns true if successfull
+bool update_cluster(uint16_t cluster, uint16_t updated_value) {
+    size_t byte_offset = cluster / 2 + cluster;
+    uint16_t* cluster_entry = (uint16_t*)(file_allocation_table + byte_offset);
+
+    if (cluster % 2 == 0) {
+        // even cluster
+        // write only bottom 12 bits out of 16
+        *cluster_entry = (*cluster_entry & 0xF000) | updated_value;
+    } else {
+        // odd cluster
+        // write only top 12 bits out of 16
+        *cluster_entry = (*cluster_entry & 0x000F) | (updated_value << 4);
+    }
+
+    return true;
 }
 
 uint32_t cluster_to_lba(uint16_t cluster, DISK* disk) {

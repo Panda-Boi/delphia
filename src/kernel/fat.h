@@ -47,5 +47,6 @@ Returns true if succesful or false if failed */
 bool file_read(char* file_name, void* address);
 
 /* Writes a file at the address given with the given size and with the given name
+If file with given name already exists, it is overwritten, a new file is created otherwise
 Returns true if succesful or false if failed */
 bool file_write(char* file_name, void* address, size_t len_bytes);

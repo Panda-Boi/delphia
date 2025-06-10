@@ -40,7 +40,7 @@ extern void main(){
     }
 
     print("Creating a file on disk...");
-    char* f = "Hello my name is Nihar\n";
+    char* f = "";
     file_write("new.txt", f, strlen(f));
     print("Written!\n");
 
